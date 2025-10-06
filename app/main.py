@@ -52,7 +52,11 @@ app.add_middleware(
 Base.metadata.create_all(bind=engine)
 
 
-initialize_firebase()
+# Firebase initialization (with error handling)
+try:
+    initialize_firebase()
+except Exception as e:
+    print(f"⚠️ Firebase setup failed, but continuing: {e}")
 
 
 
