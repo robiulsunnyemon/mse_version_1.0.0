@@ -14,7 +14,7 @@ from app.utils.schedular_push_notification import send_scheduled_notifications
 from app.routers.notification_box import notification_box_router
 from app.utils.firebase_loader import initialize_firebase
 from fastapi.middleware.cors import CORSMiddleware
-
+from app.payment.stripe_payment import router as stripe_payment_router
 
 
 
@@ -74,3 +74,4 @@ app.include_router(notification_router)
 app.include_router(promotion_router)
 app.include_router(fcm_token_router)
 app.include_router(notification_box_router)
+app.include_router(stripe_payment_router)
