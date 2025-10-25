@@ -1,4 +1,4 @@
 from  random import randint
 
 def generate_otp():
-    return randint(100000, 999999)
+    return randint(10000, 99999)

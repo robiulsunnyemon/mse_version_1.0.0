@@ -22,7 +22,7 @@ router = APIRouter(prefix="/auth/user", tags=["Auth User"])
 async def signup(user:AuthUserCreate,db: Session = Depends(get_db)):
     db_user = db.query(AuthUserModel).filter(AuthUserModel.email == user.email).first()
     if db_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="You have already registered")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="You have already registered")
     hashed_password = get_hashed_password(user.password)
     otp=generate_otp()
     send_otp_data=SendOtpModel(email=user.email,otp=otp)
