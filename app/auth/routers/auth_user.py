@@ -138,7 +138,9 @@ async def reset_password(user:AuthResetPassword,db: Session = Depends(get_db)):
 
 
 
-@router.delete("/user/me", status_code=status.HTTP_200_OK)
+
+
+@router.delete("/email", status_code=status.HTTP_200_OK)
 async def delete_auth_user_me(email: str, db: Session = Depends(get_db)):
     auth_db_user =await db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
     if not auth_db_user:
@@ -157,7 +159,7 @@ async def delete_auth_user_me(email: str, db: Session = Depends(get_db)):
 
 
 
-@router.delete("/user_id/{id}",status_code=status.HTTP_200_OK)
+@router.delete("/{id}",status_code=status.HTTP_200_OK)
 async def delete_auth_user(id:int,db: Session = Depends(get_db)):
     auth_db_user =await db.query(AuthUserModel).filter(AuthUserModel.id == id).first()
     if auth_db_user is None :
