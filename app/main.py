@@ -48,7 +48,7 @@ app.add_middleware(
 
 
 
-#Base.metadata.drop_all(bind=engine)
+Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 
@@ -63,7 +63,7 @@ except Exception as e:
 # Root endpoint
 @app.get("/", tags=["Root"])
 def read_root():
-    return {"message": "Hello, FastAPI is working!"}
+    return {"message": "Hello, MotorSportsEasy is working!"}
 
 
 # Include routers
