@@ -10,9 +10,8 @@ from app.utils.otp_generate import generate_otp
 from app.schemas.send_otp import SendOtpModel
 from app.utils.token_generation import create_access_token
 from fastapi.security import OAuth2PasswordRequestForm
-from app.routers.user import registration,delete_user
-from app.schemas.user import UserCreate, UserRead
-from app.utils.user_info import get_user_info
+from app.routers.user import registration
+from app.schemas.user import UserCreate
 
 router = APIRouter(prefix="/auth/user", tags=["Auth User"])
 
@@ -68,13 +67,13 @@ async def login(
 ):
     db_user = db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
     if db_user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Your Email is wrong")
 
     if not verify_password(password, db_user.password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Wrong password")
 
     if not db_user.is_verified:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You are not verified, please check your email")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You are not verified, please check your email")
 
     user_data=UserCreate(**{
         "uid": email,
@@ -139,22 +138,6 @@ async def reset_password(user:AuthResetPassword,db: Session = Depends(get_db)):
 
 
 
-@router.delete("/{id}",status_code=status.HTTP_200_OK)
-async def delete_auth_user(id:int,db: Session = Depends(get_db)):
-    auth_db_user =await db.query(AuthUserModel).filter(AuthUserModel.id == id).first()
-    if auth_db_user is None :
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User not found")
-    db_user = db.query(UserModel).filter(UserModel.uid == auth_db_user.email).first()
-    if db_user:
-        db.delete(db_user)
-        db.commit()
-    db.delete(auth_db_user)
-    db.commit()
-    return {"message":"user deleted successfully"}
-
-
-
-
 @router.delete("/user/me", status_code=status.HTTP_200_OK)
 async def delete_auth_user_me(email: str, db: Session = Depends(get_db)):
     auth_db_user = db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
@@ -169,3 +152,22 @@ async def delete_auth_user_me(email: str, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "User deleted successfully"}
+
+
+
+
+
+@router.delete("/user_id/{id}",status_code=status.HTTP_200_OK)
+async def delete_auth_user(id:int,db: Session = Depends(get_db)):
+    auth_db_user =await db.query(AuthUserModel).filter(AuthUserModel.id == id).first()
+    if auth_db_user is None :
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User not found")
+    db_user = db.query(UserModel).filter(UserModel.uid == auth_db_user.email).first()
+    if db_user:
+        db.delete(db_user)
+        db.commit()
+    db.delete(auth_db_user)
+    db.commit()
+    return {"message":"user deleted successfully"}
+
+
