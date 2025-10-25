@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException,status
+from fastapi import APIRouter, Depends, HTTPException,status,Form
 from app.auth.schemas.auth_user import AuthUserCreate, AuthUserOTPVerify, AuthResendOTP, AuthResetPassword
 from app.db.db import get_db
 from app.auth.model.auth_user import AuthUserModel
@@ -60,23 +60,31 @@ async def verify_otp(user:AuthUserOTPVerify,db: Session = Depends(get_db)):
 
 @router.post("/login", status_code=status.HTTP_200_OK)
 
-async def login(user_data: UserCreate,form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    db_user = db.query(AuthUserModel).filter(AuthUserModel.email == form_data.username).first()
+async def login(
+        email: str = Form(...),
+        password: str = Form(...),
+        fcm_token: str = Form(...),
+        db: Session = Depends(get_db)
+):
+    db_user = db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
     if db_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    if not verify_password(form_data.password, db_user.password):
+    if not verify_password(password, db_user.password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Wrong password")
 
     if not db_user.is_verified:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You are not verified, please check your email")
 
+    user_data=UserCreate(**{
+        "uid": email,
+        "fcmToken": fcm_token,
+    })
     token=await registration(user_data,db)
-    # token = create_access_token(data={"sub": db_user.email, "role": db_user.role, "user_id": db_user.id})
     return {"access_token": token, "token_type": "bearer"}
 
 
-
+  # token = create_access_token(data={"sub": db_user.email, "role": db_user.role, "user_id": db_user.id})
 
 @router.post("/login_for_admin", status_code=status.HTTP_200_OK)
 
