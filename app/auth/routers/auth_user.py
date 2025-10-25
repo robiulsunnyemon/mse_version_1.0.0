@@ -142,11 +142,11 @@ async def reset_password(user:AuthResetPassword,db: Session = Depends(get_db)):
 
 @router.delete("/{email}", status_code=status.HTTP_200_OK)
 async def delete_auth_user_me(email: str, db: Session = Depends(get_db)):
-    auth_db_user =await db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
+    auth_db_user = db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
     if not auth_db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    db_user =await db.query(UserModel).filter(UserModel.uid == email).first()
+    db_user = db.query(UserModel).filter(UserModel.uid == email).first()
     if db_user:
         db.delete(db_user)
 
