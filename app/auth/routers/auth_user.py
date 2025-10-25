@@ -155,16 +155,17 @@ async def delete_auth_user(id:int,db: Session = Depends(get_db)):
 
 
 
-@router.delete("/me",status_code=status.HTTP_200_OK)
-async def delete_auth_user_me(email:str,db: Session = Depends(get_db)):
-    auth_db_user =await db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
-    if auth_db_user is None :
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User not found")
+@router.delete("/user/me", status_code=status.HTTP_200_OK)
+async def delete_auth_user_me(email: str, db: Session = Depends(get_db)):
+    auth_db_user = db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
+    if not auth_db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     db_user = db.query(UserModel).filter(UserModel.uid == email).first()
     if db_user:
         db.delete(db_user)
+
     db.delete(auth_db_user)
     db.commit()
-    return {
-        "message":"user deleted successfully",
-    }
+
+    return {"message": "User deleted successfully"}
