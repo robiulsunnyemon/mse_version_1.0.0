@@ -84,7 +84,6 @@ async def login(
     return {"access_token": token, "token_type": "bearer"}
 
 
-  # token = create_access_token(data={"sub": db_user.email, "role": db_user.role, "user_id": db_user.id})
 
 @router.post("/login_for_admin", status_code=status.HTTP_200_OK)
 
@@ -158,7 +157,7 @@ async def delete_auth_user(id:int,db: Session = Depends(get_db)):
 
 @router.delete("/me",status_code=status.HTTP_200_OK)
 async def delete_auth_user_me(user: dict = Depends(get_user_info),db: Session = Depends(get_db)):
-    auth_db_user =await db.query(AuthUserModel).filter(AuthUserModel.id == id).first()
+    auth_db_user =await db.query(AuthUserModel).filter(AuthUserModel.email == user["uid"]).first()
     if auth_db_user is None :
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User not found")
     response=await  delete_user(db,user)

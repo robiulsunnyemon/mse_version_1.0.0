@@ -4,7 +4,7 @@ from jose import jwt, JWTError
 from app.utils.token_generation import SECRET_KEY, ALGORITHM
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/user/login')
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/user/login')
 
 
 def get_user_info(token: str = Depends(oauth2_scheme)):
