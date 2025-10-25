@@ -19,7 +19,6 @@ async def registration(user: UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(UserModel).filter_by(uid=user.uid).first()
 
     if db_user is None:
-        # নতুন ইউজার তৈরি
         new_user = UserModel(**user.model_dump())
         db.add(new_user)
         db.commit()

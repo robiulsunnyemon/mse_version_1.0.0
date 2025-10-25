@@ -15,7 +15,7 @@ from app.routers.notification_box import notification_box_router
 from app.utils.firebase_loader import initialize_firebase
 from fastapi.middleware.cors import CORSMiddleware
 from app.payment.stripe_payment import router as stripe_payment_router
-
+from app.auth.routers.auth_user import router as auth_user_router
 
 
 
@@ -75,3 +75,4 @@ app.include_router(promotion_router)
 app.include_router(fcm_token_router)
 app.include_router(notification_box_router)
 app.include_router(stripe_payment_router)
+app.include_router(auth_user_router)

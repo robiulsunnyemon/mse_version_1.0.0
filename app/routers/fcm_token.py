@@ -12,7 +12,7 @@ fcm_token_router = APIRouter(prefix="/fcm_token", tags=["FCM Token"])
 @fcm_token_router.post('/', response_model=FCMToken, status_code=status.HTTP_201_CREATED)
 async def create_token(fcm_token: FCMToken, db: Session = Depends(get_db),user: dict = Depends(get_user_info)):
     user_uid=user['uid']
-    db_user= db.query(UserModel).filter(UserModel.uid==user_uid).first()
+    db_user=await db.query(UserModel).filter(UserModel.uid==user_uid).first()
     new_token = FCMTokenModel(
         user_id=db_user.id,
         token=fcm_token.token

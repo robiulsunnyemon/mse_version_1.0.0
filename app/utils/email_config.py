@@ -2,9 +2,9 @@ from fastapi_mail import FastMail,MessageSchema,ConnectionConfig
 from app.schemas.send_otp import SendOtpModel
 
 conf=ConnectionConfig(
-    MAIL_USERNAME="robiulsunyemon111@gmail.com",
-    MAIL_PASSWORD= "qqir yxsd fvxb iozs",
-    MAIL_FROM= "robiulsunyemon111@gmail.com",
+    MAIL_USERNAME="stewartbrown195111@gmail.com",
+    MAIL_PASSWORD= "ysgw pkci unru mkdq",
+    MAIL_FROM= "stewartbrown195111@gmail.com",
     MAIL_PORT=587,
     MAIL_SERVER="smtp.gmail.com",
     MAIL_STARTTLS=True,
