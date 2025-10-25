@@ -140,7 +140,7 @@ async def reset_password(user:AuthResetPassword,db: Session = Depends(get_db)):
 
 
 
-@router.delete("/email", status_code=status.HTTP_200_OK)
+@router.delete("/{email}", status_code=status.HTTP_200_OK)
 async def delete_auth_user_me(email: str, db: Session = Depends(get_db)):
     auth_db_user =await db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
     if not auth_db_user:
@@ -157,19 +157,19 @@ async def delete_auth_user_me(email: str, db: Session = Depends(get_db)):
 
 
 
-
-
-@router.delete("/{id}",status_code=status.HTTP_200_OK)
-async def delete_auth_user(id:int,db: Session = Depends(get_db)):
-    auth_db_user =await db.query(AuthUserModel).filter(AuthUserModel.id == id).first()
-    if auth_db_user is None :
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User not found")
-    db_user = db.query(UserModel).filter(UserModel.uid == auth_db_user.email).first()
-    if db_user:
-        db.delete(db_user)
-        db.commit()
-    db.delete(auth_db_user)
-    db.commit()
-    return {"message":"user deleted successfully"}
-
-
+#
+#
+# @router.delete("/{id}",status_code=status.HTTP_200_OK)
+# async def delete_auth_user(id:int,db: Session = Depends(get_db)):
+#     auth_db_user =await db.query(AuthUserModel).filter(AuthUserModel.id == id).first()
+#     if auth_db_user is None :
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User not found")
+#     db_user = db.query(UserModel).filter(UserModel.uid == auth_db_user.email).first()
+#     if db_user:
+#         db.delete(db_user)
+#         db.commit()
+#     db.delete(auth_db_user)
+#     db.commit()
+#     return {"message":"user deleted successfully"}
+#
+#
