@@ -1,5 +1,5 @@
 from pydantic import BaseModel,EmailStr
-
+from datetime import datetime
 
 
 class RequestBase(BaseModel):
@@ -13,5 +13,5 @@ class RequestCreate(RequestBase):
 
 class RequestRead(RequestBase):
     user_name:str
-    created_at :str
-    updated_at :str
+    created_at :datetime
+    updated_at :datetime
