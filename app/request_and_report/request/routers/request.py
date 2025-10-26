@@ -1,6 +1,8 @@
 from fastapi import APIRouter, status, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import List
+
+from app.auth.model.auth_user import AuthUserModel
 from app.db.db import get_db
 from app.request_and_report.request.model.request import RequestModel
 from app.request_and_report.request.schemas.request import RequestRead,RequestCreate
@@ -17,8 +19,19 @@ async def get_request(db: Session = Depends(get_db)):
 # 🔹 POST create
 @request_router.post("/", response_model=RequestRead, status_code=status.HTTP_201_CREATED)
 async def create_request(request: RequestCreate, db: Session = Depends(get_db)):
-    new_request = RequestModel(**request.model_dump())
+    db_auth_user = db.query(AuthUserModel).filter(AuthUserModel.email == request.user_email).first()
+
+    if not db_auth_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    new_request = RequestModel(
+        user_name=db_auth_user.first_name,
+        user_email=request.user_email,
+        request_details=request.request_details
+    )
+
     db.add(new_request)
     db.commit()
     db.refresh(new_request)
+
     return new_request

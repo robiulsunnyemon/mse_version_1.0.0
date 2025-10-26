@@ -3,9 +3,8 @@ from pydantic import BaseModel,EmailStr
 
 
 class RequestBase(BaseModel):
-    user_name:str
     user_email:EmailStr
-    report_details:str
+    request_details:str
 
 
 class RequestCreate(RequestBase):
@@ -13,5 +12,6 @@ class RequestCreate(RequestBase):
 
 
 class RequestRead(RequestBase):
+    user_name:str
     created_at :str
     updated_at :str
