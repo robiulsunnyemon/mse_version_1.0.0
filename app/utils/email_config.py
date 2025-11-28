@@ -11,8 +11,8 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Get credentials from environment variables with fallback
-MAIL_USERNAME = os.getenv("MAIL_USERNAME", "robiulsunyemon111@gmail.com")
-MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "qqir yxsd fvxb iozs")
+MAIL_USERNAME = os.getenv("MAIL_USERNAME", "stewartbrown195111@gmail.com")
+MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "imge bokt sjqp pkry")
 MAIL_FROM = os.getenv("MAIL_FROM", "robiulsunyemon111@gmail.com")
 
 # Email configuration - Try multiple configurations
