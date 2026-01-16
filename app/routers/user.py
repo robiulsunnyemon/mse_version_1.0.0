@@ -32,7 +32,7 @@ async def registration(user: UserCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_fcm_token_user)
         uid = new_user.uid
-        fcm_token = new_fcm_token_user.fcmToken
+        fcm_token = new_fcm_token_user.token
 
     else:
         db_user.fcmToken = user.fcmToken
