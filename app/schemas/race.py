@@ -12,6 +12,7 @@ class RaceBase(BaseModel):
 
 
 class RaceCreate(RaceBase):
+    serial_number:int
     pass
 
 
