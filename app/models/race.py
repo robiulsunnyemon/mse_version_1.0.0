@@ -6,6 +6,7 @@ from app.db.db import Base
 class RaceModel(Base):
     __tablename__ = 'races'
     id = Column(Integer, primary_key=True,index=True)
+    serial_number = Column(Integer, unique=True,index=True)
     name = Column(String)
     image_logo = Column(String)
     created_at = Column(DateTime, default=func.now())

@@ -15,13 +15,15 @@ class RaceCreate(RaceBase):
     pass
 
 
-class RaceUpdate(BaseModel):   # Update schema
+class RaceUpdate(BaseModel):
+    serial_number:Optional[int] # new add
     name: Optional[str] = None
     image_logo: Optional[str] = None
 
 
 class RaceResponse(RaceBase):
     id: int
+    serial_number:int ##new add
     created_at: datetime
     updated_at: datetime
     events: Optional[List[EventResponse]] = []
