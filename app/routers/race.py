@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import List
-from sqlalchemy import desc
+from sqlalchemy import asc
 from app.models.race import RaceModel
 from app.schemas.race import RaceCreate, RaceUpdate, RaceResponse
 from app.db.db import get_db
@@ -12,7 +12,7 @@ race_router = APIRouter(prefix="/race", tags=["Race"])
 # 🔹 GET all
 @race_router.get("/", response_model=List[RaceResponse], status_code=status.HTTP_200_OK)
 async def get_races(db: Session = Depends(get_db)):
-    return db.query(RaceModel).order_by(desc(RaceModel.serial_number)).all()
+    return db.query(RaceModel).order_by(asc(RaceModel.serial_number)).all()
 
 
 # 🔹 POST create
