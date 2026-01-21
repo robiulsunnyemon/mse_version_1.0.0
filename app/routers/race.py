@@ -34,7 +34,7 @@ async def create_race(race: RaceCreate, db: Session = Depends(get_db)):
         # ২. যদি সিরিয়াল নাম্বারটি পাওয়া যায়, তবে ৪০০ স্ট্যাটাস কোড থ্রো করা হবে
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Serial number {race.serial_number} is already taken at {existing_race}. Please provide a unique one."
+            detail=f"Serial number {race.serial_number} is already taken at {existing_race.name}. Please provide a unique one."
         )
 
     # ৩. সিরিয়াল নাম্বার ইউনিক হলে ডাটা সেভ করা হবে
@@ -92,7 +92,7 @@ async def update_race(race_id: int, race_update: RaceUpdate, db: Session = Depen
         if existing_serial:
             raise HTTPException(
                 status_code=400,
-                detail=f"Serial number {new_serial} already exists at {existing_serial}. Please use a unique number."
+                detail=f"Serial number {new_serial} already exists at {existing_serial.name}. Please use a unique number."
             )
 
     # ৪. ডাটা আপডেট করা
