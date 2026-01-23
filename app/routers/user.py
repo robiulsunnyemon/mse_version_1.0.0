@@ -57,6 +57,9 @@ async def registration(user: UserCreate, db: Session = Depends(get_db)):
     }
 
 
+
+
+
 @router.get("/user", response_model=List[UserRead],status_code=status.HTTP_200_OK)
 async def get_all_users(db: Session = Depends(get_db)):
     users = db.query(UserModel).all()

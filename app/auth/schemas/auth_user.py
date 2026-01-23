@@ -33,3 +33,7 @@ class AuthUserOTPVerify(BaseModel):
 
 class AuthUserUpdate(BaseModel):
     first_name: Optional[str]
+
+class AuthGoogleLogin(BaseModel):
+    id_token: str
+    fcm_token: str

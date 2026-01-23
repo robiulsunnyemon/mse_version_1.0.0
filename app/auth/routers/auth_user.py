@@ -1,5 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException,status,Form
-from app.auth.schemas.auth_user import AuthUserCreate, AuthUserOTPVerify, AuthResendOTP, AuthResetPassword
+from app.auth.schemas.auth_user import AuthUserCreate, AuthUserOTPVerify, AuthResendOTP, AuthResetPassword, AuthGoogleLogin
+from google.oauth2 import id_token
+from google.auth.transport import requests
+import os
 from app.db.db import get_db
 from app.auth.model.auth_user import AuthUserModel
 from sqlalchemy.orm import Session
@@ -160,3 +163,56 @@ async def delete_auth_user_me(email: str, db: Session = Depends(get_db)):
 async def get_all_auth_user(db: Session = Depends(get_db)):
     auth_db_user = db.query(AuthUserModel).all()
     return {"auth_db_user": auth_db_user}
+
+
+@router.post("/google-login", status_code=status.HTTP_200_OK)
+async def google_login(data: AuthGoogleLogin, db: Session = Depends(get_db)):
+    try:
+        # Verify ID token
+        id_info = id_token.verify_oauth2_token(data.id_token, requests.Request(), os.getenv("GOOGLE_CLIENT_ID"))
+
+        if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid issuer")
+
+        email = id_info['email']
+        first_name = id_info.get('given_name', id_info.get('name', ''))
+        profile_image = id_info.get('picture')
+
+        # Check if user exists in AuthUserModel
+        db_user = db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
+
+        if not db_user:
+            # Create new auth user
+            db_user = AuthUserModel(
+                first_name=first_name,
+                email=email,
+                is_verified=True,
+                auth_provider="google",
+                profile_image=profile_image,
+                role="customer"
+            )
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+        else:
+            # Update existing user if needed
+            db_user.auth_provider = "google"
+            if profile_image:
+                db_user.profile_image = profile_image
+            db_user.is_verified = True
+            db.commit()
+            db.refresh(db_user)
+
+        # Call registration to ensure UserModel and FCM token are sync'd
+        user_create_data = UserCreate(
+            uid=email,
+            fcmToken=data.fcm_token
+        )
+        token_data = await registration(user_create_data, db)
+        
+        return token_data
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid Google token: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Google login failed: {str(e)}")
