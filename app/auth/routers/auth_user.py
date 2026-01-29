@@ -3,6 +3,7 @@ from app.auth.schemas.auth_user import AuthUserCreate, AuthUserOTPVerify, AuthRe
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import os
+import requests as http_requests
 from app.db.db import get_db
 from app.auth.model.auth_user import AuthUserModel
 from sqlalchemy.orm import Session
@@ -165,96 +166,88 @@ async def get_all_auth_user(db: Session = Depends(get_db)):
     return {"auth_db_user": auth_db_user}
 
 
-@router.post("/google-login", status_code=status.HTTP_200_OK)
-async def google_login(data: AuthGoogleLogin, db: Session = Depends(get_db)):
-    token = data.id_token
-    fcm_token = data.fcm_token
+@router.post("/google/login", status_code=status.HTTP_200_OK)
+async def google_login(
+    access_token: str = Form(...),
+    fcm_token: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Google OAuth দিয়ে login করার endpoint
     
-    email = None
-    first_name = ""
-    profile_image = None
+    Parameters:
+    - access_token: Google OAuth access token
+    - fcm_token: Firebase Cloud Messaging token (notification এর জন্য)
     
-    # 1. Try verifying as Google ID Token (JWT)
+    Returns:
+    - access_token: JWT token
+    - token_type: "bearer"
+    """
+    
+    # ১. Access token validate করা
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Access token প্রদান করুন"
+        )
+    
+    # ২. Google API থেকে user information fetch করা
     try:
-        # We try to verify it as a Google ID Token first (matches logs)
-        id_info = id_token.verify_oauth2_token(token, requests.Request(), os.getenv("GOOGLE_CLIENT_ID"))
+        response = http_requests.get(
+            f'https://www.googleapis.com/oauth2/v2/userinfo?access_token={access_token}'
+        )
         
-        # Check issuer
-        if id_info['iss'] in ['accounts.google.com', 'https://accounts.google.com']:
-            email = id_info['email']
-            first_name = id_info.get('given_name', id_info.get('name', ''))
-            profile_image = id_info.get('picture')
-            print("✅ Verified as Google ID Token")
-    except Exception as e:
-        print(f"⚠️ Google ID Token verification failed: {e}")
-
-    # 2. If not verified yet, try as Google Access Token (matches user snippet)
-    if not email:
-        try:
-            import requests as req
-            response = req.get(f'https://www.googleapis.com/oauth2/v2/userinfo?access_token={token}')
-            if response.status_code == 200:
-                user_info = response.json()
-                email = user_info.get("email")
-                first_name = user_info.get("name", "")
-                profile_image = user_info.get("picture", "")
-                print("✅ Verified as Google Access Token")
-        except Exception as e:
-             print(f"⚠️ Google Access Token verification failed: {e}")
-
-    # 3. If still not verified, try as Firebase ID Token (matches user description)
-    if not email:
-        try:
-            import firebase_admin.auth as auth
-            decoded_token = auth.verify_id_token(token)
-            email = decoded_token.get('email')
-            first_name = decoded_token.get('name', '')
-            profile_image = decoded_token.get('picture')
-            print("✅ Verified as Firebase ID Token")
-        except Exception as e:
-            print(f"⚠️ Firebase Token verification failed: {e}")
-
-    if not email:
-         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token. Could not verify as Google ID Token, Access Token, or Firebase ID Token.")
-
-    # --- Logic from User Snippet (Adapted) ---
-
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Invalid Google token"
+            )
+        
+        user_info = response.json()
+        email = user_info.get("email")
+        name = user_info.get("name", "")
+        picture = user_info.get("picture", "")
+        
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Google account থেকে email পাওয়া যায়নি"
+            )
+    
+    except http_requests.RequestException as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google API এর সাথে সংযোগ করতে সমস্যা হয়েছে"
+        )
+    
+    # ৩. Database এ user আছে কিনা চেক করা
     db_user = db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
-
-    if not db_user:
-        # Create new auth user
+    
+    # ৪. নতুন user না থাকলে তৈরি করা
+    if db_user is None:
         new_user = AuthUserModel(
-            first_name=first_name,
+            first_name=name.split(" ")[0] if name else "",
             email=email,
-            password=None, # Google users might not have a password
-            otp=None,
-            is_verified=True,
+            password=None,  # Google user এর password লাগবে না
+            is_verified=True,  # Google user already verified
+            profile_image=picture,
             auth_provider="google",
-            profile_image=profile_image,
             role="customer"
         )
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
         db_user = new_user
-    else:
-        # Update existing user info if needed
-        db_user.auth_provider = "google"
-        if profile_image:
-            db_user.profile_image = profile_image
-        if not db_user.is_verified:
-            db_user.is_verified = True
-        db.commit()
-        db.refresh(db_user)
+    
+    # ৫. UserModel তে registration করা (fcm_token সহ)
+    user_data = UserCreate(**{
+        "uid": email,
+        "fcmToken": fcm_token,
+    })
+    token = await registration(user_data, db)
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
 
-    # Call registration to ensure UserModel and FCM token are sync'd
-    # This handles the "create_access_token" part effectively
-    user_create_data = UserCreate(
-        uid=email,
-        fcmToken=fcm_token
-    )
-    
-    # registration function returns the token response
-    token_response = await registration(user_create_data, db)
-    
-    return token_response

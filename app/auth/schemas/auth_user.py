@@ -35,5 +35,5 @@ class AuthUserUpdate(BaseModel):
     first_name: Optional[str]
 
 class AuthGoogleLogin(BaseModel):
-    id_token: str
+    access_token: str
     fcm_token: str
