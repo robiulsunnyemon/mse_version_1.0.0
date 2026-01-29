@@ -167,52 +167,94 @@ async def get_all_auth_user(db: Session = Depends(get_db)):
 
 @router.post("/google-login", status_code=status.HTTP_200_OK)
 async def google_login(data: AuthGoogleLogin, db: Session = Depends(get_db)):
+    token = data.id_token
+    fcm_token = data.fcm_token
+    
+    email = None
+    first_name = ""
+    profile_image = None
+    
+    # 1. Try verifying as Google ID Token (JWT)
     try:
-        # Verify ID token
-        id_info = id_token.verify_oauth2_token(data.id_token, requests.Request(), os.getenv("GOOGLE_CLIENT_ID"))
-
-        if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid issuer")
-
-        email = id_info['email']
-        first_name = id_info.get('given_name', id_info.get('name', ''))
-        profile_image = id_info.get('picture')
-
-        # Check if user exists in AuthUserModel
-        db_user = db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
-
-        if not db_user:
-            # Create new auth user
-            db_user = AuthUserModel(
-                first_name=first_name,
-                email=email,
-                is_verified=True,
-                auth_provider="google",
-                profile_image=profile_image,
-                role="customer"
-            )
-            db.add(db_user)
-            db.commit()
-            db.refresh(db_user)
-        else:
-            # Update existing user if needed
-            db_user.auth_provider = "google"
-            if profile_image:
-                db_user.profile_image = profile_image
-            db_user.is_verified = True
-            db.commit()
-            db.refresh(db_user)
-
-        # Call registration to ensure UserModel and FCM token are sync'd
-        user_create_data = UserCreate(
-            uid=email,
-            fcmToken=data.fcm_token
-        )
-        token_data = await registration(user_create_data, db)
+        # We try to verify it as a Google ID Token first (matches logs)
+        id_info = id_token.verify_oauth2_token(token, requests.Request(), os.getenv("GOOGLE_CLIENT_ID"))
         
-        return token_data
-
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid Google token: {str(e)}")
+        # Check issuer
+        if id_info['iss'] in ['accounts.google.com', 'https://accounts.google.com']:
+            email = id_info['email']
+            first_name = id_info.get('given_name', id_info.get('name', ''))
+            profile_image = id_info.get('picture')
+            print("✅ Verified as Google ID Token")
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Google login failed: {str(e)}")
+        print(f"⚠️ Google ID Token verification failed: {e}")
+
+    # 2. If not verified yet, try as Google Access Token (matches user snippet)
+    if not email:
+        try:
+            import requests as req
+            response = req.get(f'https://www.googleapis.com/oauth2/v2/userinfo?access_token={token}')
+            if response.status_code == 200:
+                user_info = response.json()
+                email = user_info.get("email")
+                first_name = user_info.get("name", "")
+                profile_image = user_info.get("picture", "")
+                print("✅ Verified as Google Access Token")
+        except Exception as e:
+             print(f"⚠️ Google Access Token verification failed: {e}")
+
+    # 3. If still not verified, try as Firebase ID Token (matches user description)
+    if not email:
+        try:
+            import firebase_admin.auth as auth
+            decoded_token = auth.verify_id_token(token)
+            email = decoded_token.get('email')
+            first_name = decoded_token.get('name', '')
+            profile_image = decoded_token.get('picture')
+            print("✅ Verified as Firebase ID Token")
+        except Exception as e:
+            print(f"⚠️ Firebase Token verification failed: {e}")
+
+    if not email:
+         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token. Could not verify as Google ID Token, Access Token, or Firebase ID Token.")
+
+    # --- Logic from User Snippet (Adapted) ---
+
+    db_user = db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
+
+    if not db_user:
+        # Create new auth user
+        new_user = AuthUserModel(
+            first_name=first_name,
+            email=email,
+            password=None, # Google users might not have a password
+            otp=None,
+            is_verified=True,
+            auth_provider="google",
+            profile_image=profile_image,
+            role="customer"
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        db_user = new_user
+    else:
+        # Update existing user info if needed
+        db_user.auth_provider = "google"
+        if profile_image:
+            db_user.profile_image = profile_image
+        if not db_user.is_verified:
+            db_user.is_verified = True
+        db.commit()
+        db.refresh(db_user)
+
+    # Call registration to ensure UserModel and FCM token are sync'd
+    # This handles the "create_access_token" part effectively
+    user_create_data = UserCreate(
+        uid=email,
+        fcmToken=fcm_token
+    )
+    
+    # registration function returns the token response
+    token_response = await registration(user_create_data, db)
+    
+    return token_response

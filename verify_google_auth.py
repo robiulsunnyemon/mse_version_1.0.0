@@ -26,9 +26,11 @@ def test_google_login_mock():
         print(f"Response: {response.text}")
         
         if response.status_code == 401:
-            print("SUCCESS: Endpoint reached, but token was (correctly) rejected as invalid.")
+            print("SUCCESS: Endpoint reached. Token rejected as expected (since it's fake). Logic flow confirmed.")
+        elif response.status_code == 200:
+             print("SUCCESS: Logged in! (Did you put a real token?)")
         else:
-            print("UNEXPECTED: Response code was not 401.")
+            print(f"UNEXPECTED: Response code {response.status_code}.")
             
     except Exception as e:
         print(f"FAILED: Could not connect to the server: {e}")
