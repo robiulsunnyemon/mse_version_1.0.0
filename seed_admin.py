@@ -7,7 +7,7 @@ from app.utils.get_hashed_password import get_hashed_password
 def seed_admin():
     db: Session = DBSession()
     try:
-        admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
+        admin_email = os.getenv("ADMIN_EMAIL", "python seed_admin.py")
         admin_password = os.getenv("ADMIN_PASSWORD", "admin1234")
         admin_first_name = os.getenv("ADMIN_FIRST_NAME", "Admin")
 
