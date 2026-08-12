@@ -4,6 +4,9 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 import os
 import requests as http_requests
+import jwt
+import json
+from typing import Optional
 from app.db.db import get_db
 from app.auth.model.auth_user import AuthUserModel
 from sqlalchemy.orm import Session
@@ -172,64 +175,42 @@ async def google_login(
     fcm_token: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Google OAuth দিয়ে login করার endpoint
-    
-    Parameters:
-    - access_token: Google OAuth access token
-    - fcm_token: Firebase Cloud Messaging token (notification এর জন্য)
-    
-    Returns:
-    - access_token: JWT token
-    - token_type: "bearer"
-    """
-    
-    # ১. Access token validate করা
     if not access_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Access token প্রদান করুন"
+            detail="Please provide the access token."
         )
-    
-    # ২. Google API থেকে user information fetch করা
     try:
         response = http_requests.get(
             f'https://www.googleapis.com/oauth2/v2/userinfo?access_token={access_token}'
         )
-        
         if response.status_code != 200:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail="Invalid Google token"
             )
-        
         user_info = response.json()
         email = user_info.get("email")
         name = user_info.get("name", "")
         picture = user_info.get("picture", "")
-        
         if not email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Google account থেকে email পাওয়া যায়নি"
+                detail="No email address was found from the Google account."
             )
-    
     except http_requests.RequestException as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Google API এর সাথে সংযোগ করতে সমস্যা হয়েছে"
+            detail="There was a problem connecting to the Google API."
         )
     
-    # ৩. Database এ user আছে কিনা চেক করা
     db_user = db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
-    
-    # ৪. নতুন user না থাকলে তৈরি করা
     if db_user is None:
         new_user = AuthUserModel(
             first_name=name.split(" ")[0] if name else "",
             email=email,
-            password=None,  # Google user এর password লাগবে না
-            is_verified=True,  # Google user already verified
+            password=None, 
+            is_verified=True,  
             profile_image=picture,
             auth_provider="google",
             role="customer"
@@ -238,8 +219,6 @@ async def google_login(
         db.commit()
         db.refresh(new_user)
         db_user = new_user
-    
-    # ৫. UserModel তে registration করা (fcm_token সহ)
     user_data = UserCreate(**{
         "uid": email,
         "fcmToken": fcm_token,
@@ -250,4 +229,96 @@ async def google_login(
         "access_token": token,
         "token_type": "bearer"
     }
+
+
+@router.post("/apple/login", status_code=status.HTTP_200_OK)
+async def apple_login(
+    identity_token: str = Form(...),
+    fcm_token: str = Form(...),
+    name: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    if not identity_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Please provide the identity token."
+        )
+    try:
+        apple_keys_url = "https://appleid.apple.com/auth/keys"
+        key_payload = http_requests.get(apple_keys_url).json()
+        unverified_header = jwt.get_unverified_header(identity_token)
+        unverified_header = jwt.get_unverified_header(identity_token)
+        kid = unverified_header.get('kid')
+        if not kid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token header (kid missing)")
+        rsa_key = {}
+        for key in key_payload['keys']:
+            if key['kid'] == kid:
+                rsa_key = {
+                    'kty': key['kty'],
+                    'kid': key['kid'],
+                    'use': key['use'],
+                    'n': key['n'],
+                    'e': key['e']
+                }
+                break
+                
+        if not rsa_key:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Apple public key not found")
+        public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(rsa_key))
+        decoded_token = jwt.decode(
+            identity_token, 
+            public_key, 
+            algorithms=['RS256'], 
+            options={"verify_aud": False}  
+        )
+        
+        email = decoded_token.get("email")
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email not found in Apple token"
+            )
+            
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Problem with Apple authentication: {str(e)}")
+
+    db_user = db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
+    
+    if db_user is None:
+        new_user = AuthUserModel(
+            first_name=name if name else "Apple User",
+            email=email,
+            password=None,
+            is_verified=True,
+            profile_image="",
+            auth_provider="apple",
+            role="customer"
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        db_user = new_user
+    else:
+        if name and not db_user.first_name:
+            db_user.first_name = name
+            db.commit()
+            db.refresh(db_user)
+    
+    user_data = UserCreate(**{
+        "uid": email,
+        "fcmToken": fcm_token,
+    })
+    token = await registration(user_data, db)
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "message": "Apple login successful"
+    }
+
 
