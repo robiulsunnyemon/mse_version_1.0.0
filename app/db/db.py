@@ -11,18 +11,22 @@ load_dotenv()
 
 
 # Database configuration
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
-DB_NAME = os.getenv("DB_NAME")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Create database URL
-database_url = (
-    f"postgresql://"
-    f"{DB_USER}:{DB_PASSWORD}@"
-    f"{DB_HOST}:{DB_PORT}/{DB_NAME}"
-)
+if DATABASE_URL:
+    database_url = DATABASE_URL
+else:
+    DB_USER = os.getenv("DB_USER")
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    DB_HOST = os.getenv("DB_HOST")
+    DB_PORT = os.getenv("DB_PORT", "5432") # Default port if None
+    DB_NAME = os.getenv("DB_NAME")
+    
+    database_url = (
+        f"postgresql://"
+        f"{DB_USER}:{DB_PASSWORD}@"
+        f"{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    )
 
 
 # Create engine
