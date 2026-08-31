@@ -37,3 +37,10 @@ class AuthUserUpdate(BaseModel):
 class AuthGoogleLogin(BaseModel):
     access_token: str
     fcm_token: str
+
+class UpdateSubscriptionRequest(BaseModel):
+    email: EmailStr
+    is_subscribed: bool = True
+    product_id: Optional[str] = None
+    purchase_token: Optional[str] = None
+

@@ -49,8 +49,22 @@ app.add_middleware(
 
 
 
+from sqlalchemy import text
+
 #Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
+
+# Safe column migration for existing tables
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS is_subscribed BOOLEAN DEFAULT FALSE;"))
+        conn.execute(text("ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS subscription_expiry TIMESTAMP NULL;"))
+        conn.execute(text("ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS subscription_product_id VARCHAR NULL;"))
+        conn.execute(text("ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS subscription_purchase_token VARCHAR NULL;"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_subscribed BOOLEAN DEFAULT FALSE;"))
+        conn.commit()
+except Exception as e:
+    print(f"⚠️ Column migration notice: {e}")
 
 
 # Firebase initialization (with error handling)
