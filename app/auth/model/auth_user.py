@@ -17,5 +17,9 @@ class AuthUserModel(Base):
     role = Column(String, index=True, default="customer")
     profile_image = Column(String, nullable=True)  # Google user profile picture
     auth_provider = Column(String, default="email")  # email / google
+    is_subscribed = Column(Boolean, default=False)
+    subscription_expiry = Column(DateTime, nullable=True)
+    subscription_product_id = Column(String, nullable=True)
+    subscription_purchase_token = Column(String, nullable=True)
     create_time = Column(DateTime, server_default=func.now())
     update_time = Column(DateTime, server_default=func.now(), onupdate=func.now())

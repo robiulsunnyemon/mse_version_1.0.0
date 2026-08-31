@@ -9,5 +9,6 @@ class UserModel(Base):
     id = Column(Integer, primary_key=True,index=True)
     uid = Column(String)
     fcmToken = Column(String)
+    is_subscribed = Column(Boolean, default=False)
     create_time = Column(DateTime,server_default=func.now())
     update_time = Column(DateTime, server_default=func.now(), onupdate=func.now())
