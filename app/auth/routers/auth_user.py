@@ -1,5 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException,status,Form
-from app.auth.schemas.auth_user import AuthUserCreate, AuthUserOTPVerify, AuthResendOTP, AuthResetPassword, AuthGoogleLogin
+from app.auth.schemas.auth_user import (
+    AuthUserCreate,
+    AuthUserOTPVerify,
+    AuthResendOTP,
+    AuthResetPassword,
+    AuthGoogleLogin,
+    UpdateSubscriptionRequest,
+)
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import os
@@ -87,7 +94,13 @@ async def login(
         "fcmToken": fcm_token,
     })
     token=await registration(user_data,db)
-    return {"access_token": token, "token_type": "bearer"}
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "is_subscribed": bool(db_user.is_subscribed) if db_user.is_subscribed is not None else False,
+        "email": db_user.email,
+        "first_name": db_user.first_name,
+    }
 
 
 
@@ -227,7 +240,11 @@ async def google_login(
     
     return {
         "access_token": token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "is_subscribed": bool(db_user.is_subscribed) if db_user.is_subscribed is not None else False,
+        "email": db_user.email,
+        "first_name": db_user.first_name,
+        "message": "Google login successful"
     }
 
 
@@ -318,7 +335,50 @@ async def apple_login(
     return {
         "access_token": token,
         "token_type": "bearer",
+        "is_subscribed": bool(db_user.is_subscribed) if db_user.is_subscribed is not None else False,
+        "email": db_user.email,
+        "first_name": db_user.first_name,
         "message": "Apple login successful"
     }
+
+
+@router.post("/update-subscription", status_code=status.HTTP_200_OK)
+async def update_subscription(data: UpdateSubscriptionRequest, db: Session = Depends(get_db)):
+    db_user = db.query(AuthUserModel).filter(AuthUserModel.email == data.email).first()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    db_user.is_subscribed = data.is_subscribed
+    if data.product_id:
+        db_user.subscription_product_id = data.product_id
+    if data.purchase_token:
+        db_user.subscription_purchase_token = data.purchase_token
+    
+    db.commit()
+    db.refresh(db_user)
+
+    user_record = db.query(UserModel).filter(UserModel.uid == data.email).first()
+    if user_record:
+        user_record.is_subscribed = data.is_subscribed
+        db.commit()
+
+    return {
+        "message": "Subscription updated successfully",
+        "is_subscribed": db_user.is_subscribed,
+        "email": db_user.email
+    }
+
+
+@router.get("/subscription-status/{email}", status_code=status.HTTP_200_OK)
+async def get_subscription_status(email: str, db: Session = Depends(get_db)):
+    db_user = db.query(AuthUserModel).filter(AuthUserModel.email == email).first()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return {
+        "email": db_user.email,
+        "is_subscribed": bool(db_user.is_subscribed) if db_user.is_subscribed is not None else False,
+        "product_id": db_user.subscription_product_id
+    }
+
 
 
