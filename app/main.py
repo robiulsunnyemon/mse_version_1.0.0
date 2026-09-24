@@ -1,9 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
-from app.db.db import engine, Base
+from firebase_admin import messaging
+from app.db.db import engine, Base, get_db
+from app.models.fcm_token import FCMTokenModel
 from app.routers.race import race_router
 from app.routers.event import event_router
 from app.routers.user import router as user_router
@@ -79,6 +82,64 @@ except Exception as e:
 @app.get("/", tags=["Root"])
 def read_root():
     return {"message": "Hello, MotorSportsEasy is working!"}
+
+
+# 🛠️ Debug endpoint to test FCM push notification immediately
+@app.get("/debug/test-fcm/{user_id}", tags=["Debug"])
+def debug_test_fcm(user_id: int, db: Session = Depends(get_db)):
+    user_tokens = db.query(FCMTokenModel).filter(FCMTokenModel.user_id == user_id).all()
+    tokens = [t.token for t in user_tokens if t.token]
+    if not tokens:
+        return {"error": f"No FCM tokens found for user_id={user_id}"}
+    try:
+        message = messaging.MulticastMessage(
+            notification=messaging.Notification(
+                title="🔥 Live Test Notification",
+                body="If you see this, push notification is working 100%!"
+            ),
+            data={
+                "title": "Live Test",
+                "body": "Push notification test"
+            },
+            android=messaging.AndroidConfig(
+                priority='high',
+                notification=messaging.AndroidNotification(
+                    channel_id='high_importance_channel',
+                    priority='max',
+                    default_sound=True,
+                    default_vibrate_timings=True,
+                ),
+            ),
+            apns=messaging.APNSConfig(
+                headers={'apns-priority': '10'},
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(
+                        alert=messaging.ApsAlert(
+                            title="🔥 Live Test Notification",
+                            body="If you see this, push notification is working 100%!"
+                        ),
+                        sound='default',
+                        badge=1,
+                    )
+                )
+            ),
+            tokens=tokens
+        )
+        response = messaging.send_each_for_multicast(message)
+        results = []
+        for idx, resp in enumerate(response.responses):
+            results.append({
+                "token": tokens[idx][:25] + "...",
+                "success": resp.success,
+                "error": str(resp.exception) if resp.exception else None
+            })
+        return {
+            "success_count": response.success_count,
+            "failure_count": response.failure_count,
+            "results": results
+        }
+    except Exception as e:
+        return {"exception": str(e)}
 
 
 # Include routers
