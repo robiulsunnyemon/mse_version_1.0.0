@@ -71,6 +71,34 @@ def create_promotion(promotion: PromotionCreate, db: Session = Depends(get_db)):
                 title=promotion.title,
                 body=promotion.description,
             ),
+            data={
+                "title": promotion.title,
+                "body": promotion.description,
+            },
+            android=messaging.AndroidConfig(
+                priority='high',
+                notification=messaging.AndroidNotification(
+                    channel_id='high_importance_channel',
+                    priority='max',
+                    default_sound=True,
+                    default_vibrate_timings=True,
+                ),
+            ),
+            apns=messaging.APNSConfig(
+                headers={
+                    'apns-priority': '10',
+                },
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(
+                        alert=messaging.ApsAlert(
+                            title=promotion.title,
+                            body=promotion.description,
+                        ),
+                        sound='default',
+                        badge=1,
+                    ),
+                ),
+            ),
             tokens=tokens,
         )
         response = messaging.send_each_for_multicast(message)

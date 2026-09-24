@@ -10,6 +10,34 @@ async def send_bulk_notification(tokens: List[str], title: str, body: str):
                 title=title,
                 body=body,
             ),
+            data={
+                "title": title,
+                "body": body,
+            },
+            android=messaging.AndroidConfig(
+                priority='high',
+                notification=messaging.AndroidNotification(
+                    channel_id='high_importance_channel',
+                    priority='max',
+                    default_sound=True,
+                    default_vibrate_timings=True,
+                ),
+            ),
+            apns=messaging.APNSConfig(
+                headers={
+                    'apns-priority': '10',
+                },
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(
+                        alert=messaging.ApsAlert(
+                            title=title,
+                            body=body,
+                        ),
+                        sound='default',
+                        badge=1,
+                    ),
+                ),
+            ),
             tokens=tokens,
         )
 

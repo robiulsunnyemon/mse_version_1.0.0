@@ -72,6 +72,36 @@ def send_scheduled_notifications():
                                 title=title,
                                 body=body,
                             ),
+                            data={
+                                "title": title,
+                                "body": body,
+                                "race_id": str(event.race_id),
+                                "event_id": str(event.id),
+                            },
+                            android=messaging.AndroidConfig(
+                                priority='high',
+                                notification=messaging.AndroidNotification(
+                                    channel_id='high_importance_channel',
+                                    priority='max',
+                                    default_sound=True,
+                                    default_vibrate_timings=True,
+                                ),
+                            ),
+                            apns=messaging.APNSConfig(
+                                headers={
+                                    'apns-priority': '10',
+                                },
+                                payload=messaging.APNSPayload(
+                                    aps=messaging.Aps(
+                                        alert=messaging.ApsAlert(
+                                            title=title,
+                                            body=body,
+                                        ),
+                                        sound='default',
+                                        badge=1,
+                                    ),
+                                ),
+                            ),
                             tokens=tokens,
                         )
 
