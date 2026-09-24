@@ -63,8 +63,14 @@ def create_promotion(promotion: PromotionCreate, db: Session = Depends(get_db)):
 
     # 4️⃣ FCM push notification পাঠানো
     print("👉 Step 4: Sending push notifications via FCM")
-    tokens = [token.token for token in db_tokens]
-    print(f"🔎 Total tokens to send: {len(tokens)}")
+    tokens = [
+        token.token.strip() for token in db_tokens
+        if token.token and token.token.strip().lower() not in ["null", "none", "undefined", ""] and len(token.token.strip()) > 10
+    ]
+    print(f"🔎 Total valid tokens to send: {len(tokens)}")
+    if not tokens:
+        print("⚠️ No valid FCM tokens found to send.")
+        return db_promotion
     try:
         message = messaging.MulticastMessage(
             notification=messaging.Notification(

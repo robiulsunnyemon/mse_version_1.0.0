@@ -50,11 +50,14 @@ def send_scheduled_notifications():
                     user_tokens_objs = db.query(FCMTokenModel).filter(
                         FCMTokenModel.user_id == notification.user_id
                     ).all()
-                    tokens = [t.token for t in user_tokens_objs if t.token]
-                    print(f"[DEBUG] Found {len(tokens)} FCM tokens for user {notification.user_id}")
+                    tokens = [
+                        t.token.strip() for t in user_tokens_objs
+                        if t.token and t.token.strip().lower() not in ["null", "none", "undefined", ""] and len(t.token.strip()) > 10
+                    ]
+                    print(f"[DEBUG] Found {len(tokens)} valid FCM tokens for user {notification.user_id}")
 
                     if not tokens:
-                        print(f"[DEBUG] No tokens found for user {notification.user_id}, skipping.")
+                        print(f"[DEBUG] No valid tokens found for user {notification.user_id}, skipping.")
                         continue
 
                     race = db.query(RaceModel).filter(RaceModel.id == event.race_id).first()
