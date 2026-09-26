@@ -34,6 +34,7 @@ def send_scheduled_notifications():
             ).all()
             print(f"[DEBUG] Notifications to send for event {event.id}: {len(notifications)}")
 
+            sent_user_ids = set()
             for notification in notifications:
                 # Notification time in UTC
                 notification_time = event_start - timedelta(hours=notification.notification_hour)
@@ -44,6 +45,10 @@ def send_scheduled_notifications():
 
                 # Window check: current_time >= notification_time এবং 1 মিনিটের window
                 if notification_time <= current_time < notification_time + timedelta(minutes=1):
+                    if notification.user_id in sent_user_ids:
+                        print(f"[DEBUG] User {notification.user_id} already notified for event {event.id}, skipping duplicate.")
+                        continue
+                    sent_user_ids.add(notification.user_id)
                     print(f"[DEBUG] Time to send notification for user {notification.user_id}")
 
                     # User FCM tokens
