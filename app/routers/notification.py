@@ -33,6 +33,15 @@ def create_notification(notification: NotificationCreate, db: Session = Depends(
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    existing_notification = db.query(NotificationModel).filter(
+        NotificationModel.user_id == db_user.id,
+        NotificationModel.race_id == notification.race_id,
+        NotificationModel.notification_hour == notification.notification_hour
+    ).first()
+
+    if existing_notification:
+        return existing_notification
+
     db_notification = NotificationModel(
         user_id=db_user.id,
         race_id=notification.race_id,
