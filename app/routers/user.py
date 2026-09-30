@@ -31,6 +31,16 @@ async def registration(user: UserCreate, db: Session = Depends(get_db)):
         db.refresh(new_user)
 
         if is_valid_token:
+            # Clear this device token from any other users if account was switched on the same device
+            db.query(FCMTokenModel).filter(
+                FCMTokenModel.token == incoming_token,
+                FCMTokenModel.user_id != new_user.id
+            ).delete()
+            db.query(UserModel).filter(
+                UserModel.fcmToken == incoming_token,
+                UserModel.id != new_user.id
+            ).update({"fcmToken": None})
+
             new_fcm_token_user = FCMTokenModel(
                 user_id=new_user.id,
                 token=incoming_token
@@ -46,6 +56,16 @@ async def registration(user: UserCreate, db: Session = Depends(get_db)):
 
     else:
         if is_valid_token:
+            # Clear this device token from any other users if account was switched on the same device
+            db.query(FCMTokenModel).filter(
+                FCMTokenModel.token == incoming_token,
+                FCMTokenModel.user_id != db_user.id
+            ).delete()
+            db.query(UserModel).filter(
+                UserModel.fcmToken == incoming_token,
+                UserModel.id != db_user.id
+            ).update({"fcmToken": None})
+
             db_user.fcmToken = incoming_token
             db.add(db_user)
             db.commit()
