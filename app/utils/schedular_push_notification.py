@@ -35,6 +35,7 @@ def send_scheduled_notifications():
             print(f"[DEBUG] Notifications to send for event {event.id}: {len(notifications)}")
 
             sent_user_ids = set()
+            sent_tokens = set()
             for notification in notifications:
                 # Notification time in UTC
                 notification_time = event_start - timedelta(hours=notification.notification_hour)
@@ -57,13 +58,18 @@ def send_scheduled_notifications():
                     ).all()
                     tokens = [
                         t.token.strip() for t in user_tokens_objs
-                        if t.token and t.token.strip().lower() not in ["null", "none", "undefined", ""] and len(t.token.strip()) > 10
+                        if t.token and t.token.strip().lower() not in ["null", "none", "undefined", ""]
+                        and len(t.token.strip()) > 10
+                        and t.token.strip() not in sent_tokens
                     ]
                     print(f"[DEBUG] Found {len(tokens)} valid FCM tokens for user {notification.user_id}")
 
                     if not tokens:
-                        print(f"[DEBUG] No valid tokens found for user {notification.user_id}, skipping.")
+                        print(f"[DEBUG] No valid or new tokens found for user {notification.user_id}, skipping.")
                         continue
+
+                    for t in tokens:
+                        sent_tokens.add(t)
 
                     race = db.query(RaceModel).filter(RaceModel.id == event.race_id).first()
                     if not race:
